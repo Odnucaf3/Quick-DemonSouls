@@ -1,2 +1,0 @@
-# Quick-DemonSouls
- DemonSouns + Sekiro

@@ -143,9 +143,6 @@ func _physics_process(_delta:float) -> void:
 	match(myPLAYER_STATE):
 		PLAYER_STATE.IDLE:
 			#-------------------------------------------------------------------------------
-			AnimationTree_Blend2_Weight(animName_BaseBody2, 0.0, _blendWeight)
-			AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
-			#-------------------------------------------------------------------------------
 			match(myCOLLISSION_STATE):
 				COLLISSION_STATE.GROUND:
 					Handle_Input_Rotation(_delta, rotation_Speed)
@@ -160,12 +157,8 @@ func _physics_process(_delta:float) -> void:
 						Start_Attack()
 						return
 					#-------------------------------------------------------------------------------
-					if(Input.is_action_pressed(jumpInput)):
+					if(Input.is_action_just_pressed(jumpInput)):
 						Start_Jump()
-						return
-					#-------------------------------------------------------------------------------
-					if(Input.is_action_pressed(itemInput)):
-						Start_Item()
 						return
 					#-------------------------------------------------------------------------------
 					if(Input.is_action_pressed(blockInput)):
@@ -186,6 +179,7 @@ func _physics_process(_delta:float) -> void:
 						ApplyGround(_result)
 					else:
 						Enter_Fall()
+						AnimationTree_Transition_Set(animName_BaseBody, animName_Floating)
 						return
 				#-------------------------------------------------------------------------------
 				COLLISSION_STATE.AIR:
@@ -236,6 +230,7 @@ func _physics_process(_delta:float) -> void:
 							var _result: Dictionary = GroundCollision(0.0)
 							if(_result):
 								Enter_Ground(_result)
+								AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 								return
 						#-------------------------------------------------------------------------------
 						JUMP_STATE.TERMINAL_VELOCITY:
@@ -255,6 +250,7 @@ func _physics_process(_delta:float) -> void:
 							var _result: Dictionary = GroundCollision(0.0)
 							if(_result):
 								Enter_Ground(_result)
+								AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 								return
 							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
@@ -266,8 +262,8 @@ func _physics_process(_delta:float) -> void:
 			Handle_Movement(_delta, currentVelocity.x, currentVelocity.z, ground_Weight/2)
 			Handle_Rotation(_delta, rotation_Speed)
 			#-------------------------------------------------------------------------------
-			AnimationTree_Blend2_Weight(animName_BaseBody2, 1.0, _blendWeight)
-			AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
+			#AnimationTree_Blend2_Weight(animName_BaseBody2, 1.0, _blendWeight)
+			#AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
 			#-------------------------------------------------------------------------------
 			match(myCOLLISSION_STATE):
 				COLLISSION_STATE.GROUND:
@@ -310,117 +306,6 @@ func _physics_process(_delta:float) -> void:
 					#-------------------------------------------------------------------------------
 				#-------------------------------------------------------------------------------
 			#-------------------------------------------------------------------------------
-		#-------------------------------------------------------------------------------
-		PLAYER_STATE.ATTACK:
-			ApplyRootMotion(_delta, rootVelocity)
-			Handle_Combos()
-			#-------------------------------------------------------------------------------
-			AnimationTree_Blend2_Weight(animName_BaseBody2, 1.0, _blendWeight)
-			AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
-			#-------------------------------------------------------------------------------
-			if(Input.is_action_pressed(dodgeInput)):
-				if(isInSlowMotion):
-					Start_from_ATTACK_to_DODGE()
-					return
-			#-------------------------------------------------------------------------------
-			match(myCOLLISSION_STATE):
-				COLLISSION_STATE.GROUND:
-					ApplyForce()
-					#-------------------------------------------------------------------------------
-					var _result: Dictionary = GroundCollision(ground_OffSet)
-					if(_result):
-						ApplyGround(_result)
-					else:
-						Enter_Fall()
-						return
-				#-------------------------------------------------------------------------------
-				COLLISSION_STATE.AIR:
-					match(myJUMP_STATE):
-						JUMP_STATE.FALL:
-							ApplyGravity(_delta, fall_GravityScale)
-							move_and_slide()
-							#-------------------------------------------------------------------------------
-							if(velocity.y < terminalVelocity):
-								Enter_from_Fall_to_TerminalVelocity()
-								return
-							#-------------------------------------------------------------------------------
-							var _result: Dictionary = GroundCollision(0.0)
-							if(_result):
-								Enter_Ground(_result)
-								return
-						#-------------------------------------------------------------------------------
-						JUMP_STATE.TERMINAL_VELOCITY:
-							move_and_slide()
-							#-------------------------------------------------------------------------------
-							if(velocity.y > terminalVelocity):
-								Enter_from_TerminalVelocity_to_Fall()
-								return
-							#-------------------------------------------------------------------------------
-							var _result: Dictionary = GroundCollision(0.0)
-							if(_result):
-								Enter_Ground(_result)
-								return
-						#-------------------------------------------------------------------------------
-					#-------------------------------------------------------------------------------
-				#-------------------------------------------------------------------------------
-			#-------------------------------------------------------------------------------
-		#-------------------------------------------------------------------------------
-		PLAYER_STATE.ITEM:
-			Handle_Input_Rotation(_delta, rotation_Speed)
-			Handle_Input_Movement(_delta, ground_Speed, run_Speed, ground_Weight)
-			#-------------------------------------------------------------------------------
-			AnimationTree_Blend2_Weight(animName_BaseBody2, 0.0, _blendWeight)
-			AnimationTree_Blend2_Weight(animName_UpperBody2, 1.0, _blendWeight)
-			#-------------------------------------------------------------------------------
-			match(myCOLLISSION_STATE):
-				COLLISSION_STATE.GROUND:
-					ApplyForce()
-					#-------------------------------------------------------------------------------
-					var _result: Dictionary = GroundCollision(ground_OffSet)
-					if(_result):
-						ApplyGround(_result)
-					else:
-						Enter_Fall()
-						return
-				#-------------------------------------------------------------------------------
-				COLLISSION_STATE.AIR:
-					match(myJUMP_STATE):
-						JUMP_STATE.FALL:
-							ApplyGravity(_delta, fall_GravityScale)
-							move_and_slide()
-							#-------------------------------------------------------------------------------
-							if(velocity.y < terminalVelocity):
-								Enter_from_Fall_to_TerminalVelocity()
-								return
-							#-------------------------------------------------------------------------------
-							var _result: Dictionary = GroundCollision(0.0)
-							if(_result):
-								Enter_Ground(_result)
-								return
-						#-------------------------------------------------------------------------------
-						JUMP_STATE.TERMINAL_VELOCITY:
-							move_and_slide()
-							#-------------------------------------------------------------------------------
-							if(velocity.y > terminalVelocity):
-								Enter_from_TerminalVelocity_to_Fall()
-								return
-							#-------------------------------------------------------------------------------
-							var _result: Dictionary = GroundCollision(0.0)
-							if(_result):
-								Enter_Ground(_result)
-								return
-						#-------------------------------------------------------------------------------
-					#-------------------------------------------------------------------------------
-				#-------------------------------------------------------------------------------
-			#-------------------------------------------------------------------------------
-		#-------------------------------------------------------------------------------
-		PLAYER_STATE.BLOCKING:
-			AnimationTree_Blend2_Weight(animName_BaseBody2, 1.0, _blendWeight*2)
-			AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
-			Handle_Rotation(_delta, rotation_Speed)
-			if(!Input.is_action_pressed(blockInput)):
-				myPLAYER_STATE = PLAYER_STATE.IDLE
-				return
 		#-------------------------------------------------------------------------------
 	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -437,11 +322,11 @@ func PlayerInfo() -> String:
 	_s += "Jump State: "+JUMP_STATE.keys()[myJUMP_STATE] + "\n"
 	_s += "#------------------------------------------------------"+"\n"
 	_s += animName_BaseBody+"_Transition: "+str(AnimationTree_Transition_Get(animName_BaseBody))+"\n"
-	_s += animName_UpperBody+"_Transition: "+str(AnimationTree_Transition_Get(animName_UpperBody))+"\n"
-	_s += animName_BaseBody2+"_Blend2: "+str(AnimationTree_Blend2_Get(animName_BaseBody2))+"\n"
-	_s += animName_BaseBody2+"_Transition: "+str(AnimationTree_Transition_Get(animName_BaseBody2))+"\n"
-	_s += animName_UpperBody2+"_Blend2: "+str(AnimationTree_Blend2_Get(animName_UpperBody2))+"\n"
-	_s += animName_UpperBody2+"_Transition: "+str(AnimationTree_Transition_Get(animName_UpperBody2))+"\n"
+	#_s += animName_UpperBody+"_Transition: "+str(AnimationTree_Transition_Get(animName_UpperBody))+"\n"
+	#_s += animName_BaseBody2+"_Blend2: "+str(AnimationTree_Blend2_Get(animName_BaseBody2))+"\n"
+	#_s += animName_BaseBody2+"_Transition: "+str(AnimationTree_Transition_Get(animName_BaseBody2))+"\n"
+	#_s += animName_UpperBody2+"_Blend2: "+str(AnimationTree_Blend2_Get(animName_UpperBody2))+"\n"
+	#_s += animName_UpperBody2+"_Transition: "+str(AnimationTree_Transition_Get(animName_UpperBody2))+"\n"
 	_s += "#------------------------------------------------------"+"\n"
 	_s += "Anim Velocity: "+str(animVelocity)+"\n"
 	_s += "Anim Magnitude: "+str(animVelocity.length())+"\n"
@@ -471,7 +356,7 @@ func Start_from_ATTACK_to_DODGE():
 func Start_DODGE_Common():
 	myPLAYER_STATE = PLAYER_STATE.DODGE
 	myJUMP_STATE = JUMP_STATE.FALL
-	PlayAnimation_WithCopy(animName_BaseBody2,animName_Dodge)
+	AnimationTree_Transition_Set(animName_BaseBody,animName_Dodge)
 	#PlayAnimation_InSecond_WithCopy(animName_BaseBody2,animName_Dodge, 0.2)
 #-------------------------------------------------------------------------------
 func Start_Attack():
@@ -505,13 +390,11 @@ func Start_Item():
 func Enter_Fall():
 	myCOLLISSION_STATE = COLLISSION_STATE.AIR
 	myJUMP_STATE = JUMP_STATE.FALL
-	AnimationTree_Transition_Set(animName_BaseBody, animName_Floating)
 	move_and_slide()
 #-------------------------------------------------------------------------------
 func Enter_Ground(_result:Dictionary):
 	velocity.y = 0.0
 	myCOLLISSION_STATE = COLLISSION_STATE.GROUND
-	AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 #-------------------------------------------------------------------------------
 func Enter_Ground_Old():
 	myCOLLISSION_STATE = COLLISSION_STATE.GROUND
@@ -616,12 +499,14 @@ func GroundCollision(_to:float) -> Dictionary:
 	var _hitDictionary: Array[Dictionary] = []
 	#-------------------------------------------------------------------------------
 	var _d0: Dictionary = Ground_Raycast_Dictionary(0.0, _to, 0.0)
+	#-------------------------------------------------------------------------------
 	if(!_d0.is_empty()):
 		_hitDictionary.push_back(_d0)
 	#-------------------------------------------------------------------------------
 	var _radius: float = 0.1
 	var _dir: float = collider.rotation.y
-	var _num: int = 4
+	var _num: int = 0
+	#-------------------------------------------------------------------------------
 	for _i in _num:
 		var _ang = deg_to_rad(_dir)
 		var _di: Dictionary = Ground_Raycast_Dictionary(_radius*cos(_ang), _to, _radius*sin(_ang))
@@ -631,13 +516,21 @@ func GroundCollision(_to:float) -> Dictionary:
 	#-------------------------------------------------------------------------------
 	if(_hitDictionary.size() > 0):
 		var _d: Dictionary = _hitDictionary[0]
+		#-------------------------------------------------------------------------------
 		for _i in range(1, _hitDictionary.size()):
+			#-------------------------------------------------------------------------------
 			if(!_hitDictionary[_i].is_empty()):
+				#-------------------------------------------------------------------------------
 				if(_d["position"].y < _hitDictionary[_i]["position"].y):
 					_d = _hitDictionary[_i]
+				#-------------------------------------------------------------------------------
+			#-------------------------------------------------------------------------------
+		#-------------------------------------------------------------------------------
 		return _d
+	#-------------------------------------------------------------------------------
 	else:
 		return {}
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func GroundCollisionB(_to:float) -> Dictionary:
 	var _hitDictionary: Array[Dictionary] = []
@@ -832,12 +725,12 @@ func IsInStateAnimationCopy(_state:PLAYER_STATE, _s:StringName, _animName:String
 #-------------------------------------------------------------------------------
 #region ANIMATION EVENTS
 func Anim_Dodge_ExitDodge(_isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.DODGE, animName_BaseBody2, animName_Dodge, _isCopy)):
+	if(myPLAYER_STATE == PLAYER_STATE.DODGE):
 		comboCounter = 0
 		#animVelocity = Vector2.ZERO
-		if(AnimationTree_Transition_Get(animName_BaseBody) == animName_Jump):
-			AnimationTree_Transition_Set(animName_BaseBody, animName_Floating)
 		myPLAYER_STATE = PLAYER_STATE.IDLE
+		myCOLLISSION_STATE = COLLISSION_STATE.GROUND
+		AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 #-------------------------------------------------------------------------------
 func Anim_Item_ExitItem(_isCopy:bool):
 	if(IsInStateAnimationCopy(PLAYER_STATE.ITEM, animName_UpperBody2, animName_Item, _isCopy)):

@@ -33,7 +33,7 @@ func _ready():
 	timer.timeout.connect(OnReset)
 	navigationAgent.velocity_computed.connect(Velocity_computed)
 	#OnReset()
-	AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
+	#AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 	if(targetPosition.size() > 0):
 		navigationAgent.target_position = targetPosition[targetPositionIndex].global_position;
 	await NavigateFixer()
@@ -42,7 +42,7 @@ func _physics_process(_delta:float):
 	super._physics_process(_delta)
 	#-------------------------------------------------------------------------------
 	var _playback: AnimationNodeStateMachinePlayback = animation_tree.get(stateMachine_path+animName_Hurt+"/playback")
-	label3D.text = ENEMY_STATE.keys()[myENEMY_STATE] +"-"+ AnimationTree_Transition_Get(animName_BaseBody) +" "+str(deltaTimeScale)
+	#label3D.text = ENEMY_STATE.keys()[myENEMY_STATE] +"-"+ AnimationTree_Transition_Get(animName_BaseBody) +" "+str(deltaTimeScale)
 	match(myENEMY_STATE):
 		ENEMY_STATE.PATROLLING:
 			Patrolling(_delta)
