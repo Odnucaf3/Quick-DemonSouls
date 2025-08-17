@@ -7,10 +7,6 @@ var myPLAYER_STATE: PLAYER_STATE = PLAYER_STATE.IDLE
 var myCOLLISSION_STATE: COLLISSION_STATE = COLLISSION_STATE.GROUND
 var myJUMP_STATE: JUMP_STATE = JUMP_STATE.FALL
 #-------------------------------------------------------------------------------
-# Player Nodes
-@export var foot: Area3D
-@export var footBox: Node3D
-#-------------------------------------------------------------------------------
 # Player Animation
 const animName_BaseBody: StringName = "BaseBody"
 const animName_UpperBody: StringName = "UpperBody"
@@ -19,6 +15,7 @@ const animName_UpperBody2: StringName = "UpperBody2"
 #-------------------------------------------------------------------------------
 const animName_Empty: StringName = ""
 const animName_Locomotion: StringName = "Locomotion"
+const animName_Land: StringName = "Land"
 const animName_Jump: StringName = "Jump"
 const animName_Dodge: StringName = "Dodge"
 const animName_Attack: StringName = "Attack"
@@ -49,6 +46,8 @@ const cameraWeight: float = 0.2
 const cameraAngleMin: float = -70
 const cameraAngleMax: float = 70
 var cameraZ: float
+var cameraY: float
+var cameraY_LockOn: float
 #-------------------------------------------------------------------------------
 @export var lockOn_Area3D: Area3D
 @export var lockOn_Collider: CollisionShape3D
@@ -114,13 +113,12 @@ var blockingTimer: float = 0
 #region MONOVEHAVIOUR
 func _ready():
 	cameraZ = camera.position.z
+	cameraY = cameraPivot.position.y
+	cameraY_LockOn = cameraY + 0.3
 	#-------------------------------------------------------------------------------
 	attack_playback = animation_tree.get("parameters/Attack/playback")
 	AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 	#-------------------------------------------------------------------------------
-	foot.body_entered.connect(KickEvent)
-	#-------------------------------------------------------------------------------
-	CloseHurtBox()
 	LockOff()
 #-------------------------------------------------------------------------------
 func _process(_delta:float) -> void:
@@ -153,34 +151,20 @@ func _physics_process(_delta:float) -> void:
 						Start_from_IDLE_to_DODGE()
 						return
 					#-------------------------------------------------------------------------------
-					if(Input.is_action_pressed(attackInput)):
-						Start_Attack()
-						return
-					#-------------------------------------------------------------------------------
-					if(Input.is_action_just_pressed(jumpInput)):
+					if(Input.is_action_pressed(jumpInput)):
 						Start_Jump()
 						return
 					#-------------------------------------------------------------------------------
-					if(Input.is_action_pressed(blockInput)):
-						AnimationTree_Transition_Set(animName_BaseBody2, animName_Blocking)
-						myPLAYER_STATE = PLAYER_STATE.BLOCKING
-						return
-					#-------------------------------------------------------------------------------
-					#Note: El "is_on_floor()" del propio Juego
-					#if(is_on_floor()):
-					#	move_and_slide()
-					#else:
-					#	Enter_Fall()
-					#	return
-					#-------------------------------------------------------------------------------
-					#Note: Mi version de "is_on_floor()"
 					var _result: Dictionary = GroundCollision(ground_OffSet)
+					#-------------------------------------------------------------------------------
 					if(_result):
 						ApplyGround(_result)
+					#-------------------------------------------------------------------------------
 					else:
 						Enter_Fall()
 						AnimationTree_Transition_Set(animName_BaseBody, animName_Floating)
 						return
+					#-------------------------------------------------------------------------------
 				#-------------------------------------------------------------------------------
 				COLLISSION_STATE.AIR:
 					Handle_Input_Rotation(_delta, rotation_Speed)
@@ -202,6 +186,7 @@ func _physics_process(_delta:float) -> void:
 							if(velocity.y <= 0.0):
 								Enter_from_Jump_to_Fall()
 								return
+							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
 						JUMP_STATE.HEAVY_JUMP:
 							Handle_Input_Movement(_delta, heavyJump_Speed, run_Speed, heavyJump_Weight)
@@ -211,6 +196,7 @@ func _physics_process(_delta:float) -> void:
 							if(velocity.y <= 0.0):
 								Enter_from_Jump_to_Fall()
 								return
+							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
 						JUMP_STATE.FALL:
 							Handle_Input_Movement(_delta, fall_Speed, run_Speed, fall_Weight)
@@ -221,17 +207,12 @@ func _physics_process(_delta:float) -> void:
 								Enter_from_Fall_to_TerminalVelocity()
 								return
 							#-------------------------------------------------------------------------------
-							#Note: El "is_on_floor()" del propio Juego
-							#if(is_on_floor()):
-							#	Enter_Ground_Old()
-							#	return
-							#-------------------------------------------------------------------------------
-							#Note: Mi version de "is_on_floor()"
 							var _result: Dictionary = GroundCollision(0.0)
+							#-------------------------------------------------------------------------------
 							if(_result):
-								Enter_Ground(_result)
-								AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
+								Enter_Ground_with_Animation(_result)
 								return
+							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
 						JUMP_STATE.TERMINAL_VELOCITY:
 							Handle_Input_Movement(_delta, terminalVelocity_Speed, run_Speed, terminalVelocity_Weight)
@@ -241,16 +222,10 @@ func _physics_process(_delta:float) -> void:
 								Enter_from_TerminalVelocity_to_Fall()
 								return
 							#-------------------------------------------------------------------------------
-							#Note: El "is_on_floor()" del propio Juego
-							#if(is_on_floor()):
-							#	Enter_Ground_Old()
-							#	return
-							#-------------------------------------------------------------------------------
-							#Note: Mi version de "is_on_floor()"
 							var _result: Dictionary = GroundCollision(0.0)
+							#-------------------------------------------------------------------------------
 							if(_result):
-								Enter_Ground(_result)
-								AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
+								Enter_Ground_with_Animation(_result)
 								return
 							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
@@ -259,22 +234,24 @@ func _physics_process(_delta:float) -> void:
 			#-------------------------------------------------------------------------------
 		#-------------------------------------------------------------------------------
 		PLAYER_STATE.DODGE:
-			Handle_Movement(_delta, currentVelocity.x, currentVelocity.z, ground_Weight/2)
-			Handle_Rotation(_delta, rotation_Speed)
+			#Handle_Movement(_delta, currentVelocity.x, currentVelocity.z, ground_Weight)		#OPCION_1: Cuando quiero que la velocidad sea controlada "currentVelocity".
+			ApplyRootMotion(_delta, rootVelocity)												#OPCION_2: Cuando quiero que la velocidad sea controlada "rootVelocity".
 			#-------------------------------------------------------------------------------
-			#AnimationTree_Blend2_Weight(animName_BaseBody2, 1.0, _blendWeight)
-			#AnimationTree_Blend2_Weight(animName_UpperBody2, 0.0, _blendWeight)
+			Handle_Rotation(_delta, rotation_Speed)
 			#-------------------------------------------------------------------------------
 			match(myCOLLISSION_STATE):
 				COLLISSION_STATE.GROUND:
 					ApplyForce()
 					#-------------------------------------------------------------------------------
 					var _result: Dictionary = GroundCollision(ground_OffSet)
+					#-------------------------------------------------------------------------------
 					if(_result):
 						ApplyGround(_result)
+					#-------------------------------------------------------------------------------
 					else:
 						Enter_Fall()
 						return
+					#-------------------------------------------------------------------------------
 				#-------------------------------------------------------------------------------
 				COLLISSION_STATE.AIR:
 					match(myJUMP_STATE):
@@ -287,9 +264,11 @@ func _physics_process(_delta:float) -> void:
 								return
 							#-------------------------------------------------------------------------------
 							var _result: Dictionary = GroundCollision(0.0)
+							#-------------------------------------------------------------------------------
 							if(_result):
 								Enter_Ground(_result)
 								return
+							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
 						JUMP_STATE.TERMINAL_VELOCITY:
 							move_and_slide()
@@ -299,9 +278,11 @@ func _physics_process(_delta:float) -> void:
 								return
 							#-------------------------------------------------------------------------------
 							var _result: Dictionary = GroundCollision(0.0)
+							#-------------------------------------------------------------------------------
 							if(_result):
 								Enter_Ground(_result)
 								return
+							#-------------------------------------------------------------------------------
 						#-------------------------------------------------------------------------------
 					#-------------------------------------------------------------------------------
 				#-------------------------------------------------------------------------------
@@ -359,19 +340,6 @@ func Start_DODGE_Common():
 	AnimationTree_Transition_Set(animName_BaseBody,animName_Dodge)
 	#PlayAnimation_InSecond_WithCopy(animName_BaseBody2,animName_Dodge, 0.2)
 #-------------------------------------------------------------------------------
-func Start_Attack():
-	myPLAYER_STATE = PLAYER_STATE.ATTACK
-	currentVelocity = velocity
-	comboCounter = 0
-	isInSlowMotion = false
-	canRotate = false
-	CloseHurtBox()
-	AnimationSpeed_WithCopy(animName_Combo1, comboFastMotion)
-	PlayAnimation_WithCopy(animName_BaseBody2, animName_Combo1)
-	#AnimationTree_TimeScale(animName_Combo1, comboFastMotion)
-	#AnimationTree_Transition_Set(animName_BaseBody2, animName_Combo1)
-	move_and_slide()
-#-------------------------------------------------------------------------------
 func Start_Jump():
 	velocity.y = jumpVelocity
 	myCOLLISSION_STATE = COLLISSION_STATE.AIR
@@ -379,25 +347,18 @@ func Start_Jump():
 	AnimationTree_Transition_Set(animName_BaseBody, animName_Jump)
 	move_and_slide()
 #-------------------------------------------------------------------------------
-func Start_Item():
-	myPLAYER_STATE = PLAYER_STATE.ITEM
-	PlayAnimation_InSecond_WithCopy(animName_UpperBody2, animName_Item, 1.8)
-	#AnimationTree_TimeSeek(animName_Item, 1.8)
-	#AnimationTree_Transition_Set(animName_UpperBody2, animName_Item)
-	myJUMP_STATE = JUMP_STATE.FALL
-	move_and_slide()
-#-------------------------------------------------------------------------------
 func Enter_Fall():
 	myCOLLISSION_STATE = COLLISSION_STATE.AIR
 	myJUMP_STATE = JUMP_STATE.FALL
 	move_and_slide()
 #-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 func Enter_Ground(_result:Dictionary):
 	velocity.y = 0.0
 	myCOLLISSION_STATE = COLLISSION_STATE.GROUND
 #-------------------------------------------------------------------------------
-func Enter_Ground_Old():
-	myCOLLISSION_STATE = COLLISSION_STATE.GROUND
+func Enter_Ground_with_Animation(_result:Dictionary):
+	Enter_Ground(_result)
 	AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
 #-------------------------------------------------------------------------------
 func Enter_from_LightJump_to_HeavyJump():
@@ -469,6 +430,7 @@ func Handle_Movement(_delta:float, _x:float, _z:float, _weight:float):
 	velocity.z = lerp(velocity.z, _z, _f)
 #-------------------------------------------------------------------------------
 func Roll_Movement(_speed:float):
+	#-------------------------------------------------------------------------------
 	if(input_dir != Vector2.ZERO):
 		var _targetDir: Vector3
 		_targetDir = cameraHolder.transform.basis.z * input_dir_raw.y
@@ -477,11 +439,14 @@ func Roll_Movement(_speed:float):
 		_targetDir.normalized()
 		currentVelocity = _targetDir * _speed
 		currentAngle = atan2(_targetDir.x, _targetDir.z)
+	#-------------------------------------------------------------------------------
 	else:
 		currentVelocity = currentRoot.normalized()* Vector3.BACK * _speed
 		currentAngle = atan2(currentVelocity.x, currentVelocity.z)
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func Handle_Input_Rotation(_delta:float, _weight:float):
+	#-------------------------------------------------------------------------------
 	if(input_dir != Vector2.ZERO):
 		var _targetDir: Vector3
 		_targetDir = cameraHolder.transform.basis.z * input_dir_raw.y
@@ -489,13 +454,18 @@ func Handle_Input_Rotation(_delta:float, _weight:float):
 		_targetDir.y = 0.0
 		_targetDir.normalized()
 		currentAngle = atan2(_targetDir.x, _targetDir.z)
+	#-------------------------------------------------------------------------------
 	Handle_Rotation(_delta, _weight)
 #-------------------------------------------------------------------------------
 func Handle_Rotation(_delta:float, _weight:float):
 	var _f: float = _weight * deltaTimeScale
 	global_rotation.y = lerp_angle(global_rotation.y, currentAngle, _f)
 #-------------------------------------------------------------------------------
-func GroundCollision(_to:float) -> Dictionary:
+func GroundCollision(_to:float) -> Dictionary:		#Descripcion: Detecta y devuelve 1 ground
+	var _d: Dictionary = Ground_Raycast_Dictionary(0.0, _to, 0.0)
+	return _d
+#-------------------------------------------------------------------------------
+func GroundCollision_B(_to:float) -> Dictionary:		#Descripcion: Detecta multimples ground y devuelve el más lejano.
 	var _hitDictionary: Array[Dictionary] = []
 	#-------------------------------------------------------------------------------
 	var _d0: Dictionary = Ground_Raycast_Dictionary(0.0, _to, 0.0)
@@ -532,7 +502,7 @@ func GroundCollision(_to:float) -> Dictionary:
 		return {}
 	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-func GroundCollisionB(_to:float) -> Dictionary:
+func GroundCollision_C(_to:float) -> Dictionary:
 	var _hitDictionary: Array[Dictionary] = []
 	#-------------------------------------------------------------------------------
 	var _d0: Dictionary = Ground_Raycast_Dictionary(0.0, _to, 0.0)
@@ -542,6 +512,7 @@ func GroundCollisionB(_to:float) -> Dictionary:
 	var _radius: float = collider.shape.radius * 0.5
 	var _dir: float = collider.rotation.y
 	var _num: int = 4
+	#-------------------------------------------------------------------------------
 	for _i in _num:
 		var _ang = deg_to_rad(_dir)
 		var _di: Dictionary = Ground_Raycast_Dictionary(_radius*cos(_ang), _to, _radius*sin(_ang))
@@ -551,14 +522,17 @@ func GroundCollisionB(_to:float) -> Dictionary:
 	#-------------------------------------------------------------------------------
 	if(_hitDictionary.size() > 0):
 		return _hitDictionary[0]
+	#-------------------------------------------------------------------------------
 	else:
 		return {}
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func Ground_Raycast_Dictionary(_x:float, _down:float, _z:float) -> Dictionary:
 	var _query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.new()
 	#var _from: Vector3 = to_global(Vector3(_x, collider.position.y-collider.shape.height/2.0, _z))
 	var _from: Vector3 = to_global(Vector3(_x, 0.3, _z))
 	var _to: Vector3 = to_global(Vector3(_x, _down, _z))
+	#-------------------------------------------------------------------------------
 	_query.from = _from
 	_query.to = _to
 	_query.collide_with_areas = false
@@ -572,33 +546,13 @@ func Ground_Raycast_Dictionary(_x:float, _down:float, _z:float) -> Dictionary:
 func Ground_Raycast_Drawline(_d:Dictionary, _from:Vector3, _to:Vector3):
 	if(_d.is_empty()):
 		DrawDebug_Line(_from, _to, Color.RED, 1)
+	#-------------------------------------------------------------------------------
 	else:
 		var _pos: Vector3 = _d["position"]
 		var _normal: Vector3 = _pos+_d["normal"]
 		DrawDebug_Line(_from, _to, Color.GREEN, 1)
 		DrawDebug_Line(_pos, _normal, Color.YELLOW, 1)
-#-------------------------------------------------------------------------------
-#Parece que get_rest_info() solo detecto las lineas de los CollisionShapes, no me sirve.
-func GroundCollision2(_offset:float, _height:float) -> Dictionary:
-	var _shape_rid :RID = PhysicsServer3D.cylinder_shape_create()
-	var _half_extents :Vector2 = Vector2(_height, 0.35)
-	PhysicsServer3D.shape_set_data(_shape_rid, _half_extents)
 	#-------------------------------------------------------------------------------
-	var _query :PhysicsShapeQueryParameters3D = PhysicsShapeQueryParameters3D.new()
-	_query.shape_rid = _shape_rid
-	_query.collide_with_areas = false
-	_query.collide_with_bodies = true
-	_query.collision_mask = groundColliderLayer
-	#-------------------------------------------------------------------------------
-	var _transform: Transform3D = get_global_transform()
-	_transform.translated(Vector3.UP*_offset)
-	_query.transform = _transform
-	#-------------------------------------------------------------------------------
-	var _direct_space_state :PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
-	var _result :Dictionary = _direct_space_state.get_rest_info(_query)
-	#-------------------------------------------------------------------------------
-	PhysicsServer3D.free_rid(_shape_rid)
-	return _result
 #endregion
 #-------------------------------------------------------------------------------
 #region CAMERA MOVEMENT
@@ -610,10 +564,13 @@ func Camera_StateMachine(_delta:float, _x:float, _y:float, _scale:float):
 			if(!Is_LockOn_InRange(cameraCurrentTarget)):
 				LockOff()
 				return
+			#-------------------------------------------------------------------------------
 			if(Input.is_action_just_pressed(lockOnInput)):
 				cameraCurrentTarget = null
 				LockOff()
 				return
+			#-------------------------------------------------------------------------------
+			cameraPivot.position.y = lerp(cameraPivot.position.y, cameraY_LockOn, 0.3)
 			CameraLockOn(_delta)
 			LockOn_DotManager()
 		#-------------------------------------------------------------------------------
@@ -625,6 +582,9 @@ func Camera_StateMachine(_delta:float, _x:float, _y:float, _scale:float):
 					LockOn_DotManager()
 					lockOn_Texture.show()
 					return
+				#-------------------------------------------------------------------------------
+			#-------------------------------------------------------------------------------
+			cameraPivot.position.y = lerp(cameraPivot.position.y, cameraY, 0.3)
 			CameraRotation(_x, _y, _scale)
 		#-------------------------------------------------------------------------------
 	#-------------------------------------------------------------------------------
@@ -666,14 +626,18 @@ func CameraCollision():
 	_query.collision_mask = cameraColliderLayer
 	#-------------------------------------------------------------------------------
 	var _hitDictionary: Dictionary = get_world_3d().direct_space_state.intersect_ray(_query)
+	#-------------------------------------------------------------------------------
 	if(_hitDictionary):
 		camera.position = Vector3(0.0, 0.0, _hitDictionary["position"].distance_to(_from) - standOffDistance)
+	#-------------------------------------------------------------------------------
 	else:
 		camera.position = Vector3(0, 0, cameraZ)
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func Check_for_LockOn() -> Area3D:
 	var _lockOn_List: Array[Area3D] = lockOn_Area3D.get_overlapping_areas()
 	var _size: int = _lockOn_List.size()
+	#-------------------------------------------------------------------------------
 	if(_size > 0):
 		var _l : Area3D = _lockOn_List[0]
 		var _v3: Vector3 = lockOn_Area3D.global_position
@@ -683,9 +647,13 @@ func Check_for_LockOn() -> Area3D:
 			var _di: float = _v3.distance_to(_li.global_position)
 			if(_di < _d):
 				_l = _li
+			#-------------------------------------------------------------------------------
+		#-------------------------------------------------------------------------------
 		return _l
+	#-------------------------------------------------------------------------------
 	else:
 		return null
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func Is_LockOn_InRange(_target: Area3D) -> bool:
 	var _v3: Vector3 = lockOn_Area3D.global_position
@@ -731,52 +699,6 @@ func Anim_Dodge_ExitDodge(_isCopy:bool):
 		myPLAYER_STATE = PLAYER_STATE.IDLE
 		myCOLLISSION_STATE = COLLISSION_STATE.GROUND
 		AnimationTree_Transition_Set(animName_BaseBody, animName_Locomotion)
-#-------------------------------------------------------------------------------
-func Anim_Item_ExitItem(_isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ITEM, animName_UpperBody2, animName_Item, _isCopy)):
-		myPLAYER_STATE = PLAYER_STATE.IDLE
-#-------------------------------------------------------------------------------
-func Anim_Attack_CanRotate(_canRotate:bool, _isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy)):
-		canRotate = _canRotate
-#-------------------------------------------------------------------------------
-func Anim_Attack_OpenHurtBox(_isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy)):
-		foot.monitoring = true
-		footBox.show()
-#-------------------------------------------------------------------------------
-func Anim_Attack_CloseHurtBox(_isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy)):
-		CloseHurtBox()
-#-------------------------------------------------------------------------------
-func CloseHurtBox():
-	foot.monitoring = false
-	footBox.hide()
-#-------------------------------------------------------------------------------
-func Anim_Attack_SlowMotion(_max:int, _isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy) and comboCounter < _max):
-		isInSlowMotion = true
-		AnimationSpeed_WithCopy(animName_Combo1, comboSlowMotion)
-#-------------------------------------------------------------------------------
-func Anim_Attack_FastMotion(_max:int, _isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy)):
-		isInSlowMotion = false
-		AnimationSpeed_WithCopy(animName_Combo1, comboFastMotion)
-#-------------------------------------------------------------------------------
-func Anim_Attack_ExitCombo(_max:int, _isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy) and comboCounter < _max):
-		ExitAttack_Common()
-#-------------------------------------------------------------------------------
-func Anim_Attack_ExitAttack(_isCopy:bool):
-	if(IsInStateAnimationCopy(PLAYER_STATE.ATTACK, animName_BaseBody2, animName_Combo1, _isCopy)):
-		ExitAttack_Common()
-#-------------------------------------------------------------------------------
-func ExitAttack_Common():
-	CloseHurtBox()
-	comboCounter = 0
-	#animVelocity = Vector2.ZERO
-	AnimationSpeed_WithCopy(animName_Combo1, 1.0)
-	myPLAYER_STATE = PLAYER_STATE.IDLE
 #endregion
 #-------------------------------------------------------------------------------
 #region READY FUNCIONS
@@ -812,13 +734,17 @@ func DrawDebug_Line(pos1: Vector3, pos2: Vector3, color = Color.WHITE_SMOKE, per
 #-------------------------------------------------------------------------------
 func final_cleanup(mesh_instance: MeshInstance3D, persist_ms: float):
 	get_tree().get_root().add_child(mesh_instance)
+	#-------------------------------------------------------------------------------
 	if persist_ms == 1:
 		await get_tree().physics_frame
 		mesh_instance.queue_free()
+	#-------------------------------------------------------------------------------
 	elif persist_ms > 0:
 		await get_tree().create_timer(persist_ms).timeout
 		mesh_instance.queue_free()
+	#-------------------------------------------------------------------------------
 	else:
 		return mesh_instance
+	#-------------------------------------------------------------------------------
 #endregion
 #-------------------------------------------------------------------------------

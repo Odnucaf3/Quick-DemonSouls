@@ -1,10 +1,11 @@
 extends CharacterBody3D
 class_name Character_Script
-#region VARIABLES
+#-------------------------------------------------------------------------------
 enum PLAYER_STATE{IDLE, ATTACK, DODGE, ITEM, BLOCKING}
 enum COLLISSION_STATE{GROUND, AIR}
 enum GROUND_STATE{STANDING_STILL, MOVING}
 enum JUMP_STATE{LIGHT_JUMP, HEAVY_JUMP, FALL, TERMINAL_VELOCITY}
+#region VARIABLES
 #-------------------------------------------------------------------------------
 @onready var model: Node3D = $"model"
 #@export var model: Node3D
@@ -44,10 +45,13 @@ func AnimationTree_Blend2_Weight(_s:StringName, _f:float, _weight:float) -> void
 #-------------------------------------------------------------------------------
 func AnimationTree_OneShot_Set(_s:StringName, _b:bool) -> void:
 	var _path: String = "parameters/"+_s+"_OneShot/request"
+	#-------------------------------------------------------------------------------
 	if(_b):
 		animation_tree[_path] = AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
+	#-------------------------------------------------------------------------------
 	else:
 		animation_tree[_path] = AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT
+	#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 func AnimationTree_OneShot_Get(_s:StringName) -> bool:
 	return animation_tree["parameters/"+_s+"_OneShot/active"]
@@ -82,14 +86,19 @@ func AnimationSpeed_WithCopy(_anim:StringName, _f:float):
 	AnimationTree_TimeScale(_anim+animName_Copy, _f)
 #-------------------------------------------------------------------------------
 func IsInAnimationCopy(_s:StringName, _animName:StringName, _isCopy:bool) -> bool:
+	#-------------------------------------------------------------------------------
 	if(_isCopy):
 		_animName += animName_Copy
+	#-------------------------------------------------------------------------------
 	return IsInAnimation(_s, _animName)
 #-------------------------------------------------------------------------------
 func IsInAnimation(_s:StringName, _animName:StringName) -> bool:
+	#-------------------------------------------------------------------------------
 	if(AnimationTree_Transition_Get(_s) == _animName):
 		return true
+	#-------------------------------------------------------------------------------
 	else:
 		return false
+	#-------------------------------------------------------------------------------
 #endregion
 #-------------------------------------------------------------------------------
